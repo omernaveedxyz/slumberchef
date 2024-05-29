@@ -1,6 +1,36 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Card from "../components/Card.astro";
+import {
+  Ingredient,
+  Dish,
+  DishIngredient,
+  db,
+  eq,
+  lte,
+  and,
+  or,
+  count,
+} from "astro:db";
+
+const ingredients = await db.select({ id: Ingredient.id }).from(Ingredient);
+const dishes = await db
+  .select({ id: Dish.id, count: count() })
+  .from(DishIngredient)
+  .innerJoin(Dish, eq(DishIngredient.dishId, Dish.id))
+  .where(
+    or(
+      ...ingredients.map((ingredient) =>
+        and(
+          eq(DishIngredient.ingredientId, ingredient.id),
+          lte(DishIngredient.quantity, 0), // TODO: get value from formData
+        ),
+      ),
+    ),
+  )
+  .groupBy(Dish.id)
+  .having(({ count }) => eq(count, ingredients.length));
+console.log(dishes);
 ---
 
 <Layout title="Welcome to Astro.">

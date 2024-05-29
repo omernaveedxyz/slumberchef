@@ -2,7 +2,8 @@
   "recommendations": [
     "astro-build.astro-vscode",
     "esbenp.prettier-vscode",
-    "ms-python.python"
+    "ms-python.python",
+    "bradlc.vscode-tailwindcss"
   ],
   "unwantedRecommendations": []
 }

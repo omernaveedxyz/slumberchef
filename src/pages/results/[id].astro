@@ -1,0 +1,122 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import {
+  Ingredient,
+  Dish,
+  DishIngredient,
+  db,
+  eq,
+  lte,
+  and,
+  or,
+  count,
+  gt,
+  desc,
+} from "astro:db";
+import IngredientInput from "../../components/IngredientInput.astro";
+
+const { id } = Astro.params;
+
+let formData: any = {};
+let ingredients = [];
+let dishes: any[] = [];
+try {
+  if (id === undefined) throw new Error("id parameter is undefined");
+  formData = JSON.parse(Buffer.from(id, "base64url").toString());
+  ingredients = await db
+    .select({ name: Ingredient.name, id: Ingredient.id })
+    .from(Ingredient);
+  dishes = await db
+    .select({
+      id: Dish.id,
+      name: Dish.name,
+      baseStrength: Dish.baseStrength,
+      minPotSize: Dish.minPotSize,
+      type: Dish.type,
+      count: count(),
+    })
+    .from(DishIngredient)
+    .innerJoin(Dish, eq(DishIngredient.dishId, Dish.id))
+    .where(
+      and(
+        gt(Dish.baseStrength, 0),
+        or(
+          ...ingredients.map((ingredient) =>
+            and(
+              eq(DishIngredient.ingredientId, ingredient.id),
+              lte(DishIngredient.quantity, formData[ingredient.name]),
+            ),
+          ),
+        ),
+      ),
+    )
+    .groupBy(Dish.id)
+    .orderBy(desc(Dish.baseStrength))
+    .having(({ count }) => eq(count, ingredients.length));
+} catch (error) {
+  console.error(error);
+}
+---
+
+<Layout title="SlumberChef - The Pokemon Sleep Cooking Calculator">
+  <main>
+    <form action=`/${id}`>
+      <button class="m-4 rounded bg-blue-400 p-2 text-white">Edit</button>
+    </form>
+
+    <ul class="m-4 grid grid-cols-4 gap-8 rounded bg-blue-400 p-4">
+      {
+        Object.keys(formData).map((ingredient) => {
+          if (ingredient !== "Pot Size")
+            return (
+              <IngredientInput
+                name={ingredient}
+                value={formData[ingredient]}
+                disabled={true}
+              />
+            );
+        })
+      }
+    </ul>
+
+    {
+      dishes.map((dish) => {
+        return (
+          <div class="m-4 bg-gray-600 p-2 text-white">
+            <span>Name: {dish.name},</span>
+            <span>Base Strength: {dish.baseStrength},</span>
+            <span>Minimum Pot Size: {dish.minPotSize},</span>
+            <span>Type: {dish.type}</span>
+            <ul class="ml-4">
+              {db
+                .select({
+                  name: Ingredient.name,
+                  quantity: DishIngredient.quantity,
+                })
+                .from(DishIngredient)
+                .innerJoin(
+                  Ingredient,
+                  eq(Ingredient.id, DishIngredient.ingredientId),
+                )
+                .where(
+                  and(
+                    gt(DishIngredient.quantity, 0),
+                    eq(DishIngredient.dishId, dish.id),
+                  ),
+                )
+                .then((ingredients) => {
+                  return ingredients.map((ingredient) => {
+                    return (
+                      <li>
+                        {ingredient.name} x{ingredient.quantity}
+                      </li>
+                    );
+                  });
+                })}
+            </ul>
+          </div>
+        );
+      })
+    }
+  </main>
+</Layout>

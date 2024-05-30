@@ -1,0 +1,23 @@
+---
+import Layout from "../layouts/Layout.astro";
+import IngredientForm from "../components/IngredientForm.astro";
+
+const { id } = Astro.params;
+
+let formData = {};
+try {
+  if (id === undefined) throw new Error("id parameter is undefined");
+  formData = JSON.parse(Buffer.from(id, "base64url").toString());
+} catch (error) {
+  if (error instanceof Error) {
+    console.error(error.message);
+  }
+  return Astro.redirect("/");
+}
+---
+
+<Layout title="SlumberChef - The Pokemon Sleep Cooking Calculator">
+  <main class="flex justify-center">
+    <IngredientForm formData={formData} />
+  </main>
+</Layout>
